@@ -1,5 +1,4 @@
 absl-py
-tensorflow==2.2.0
 tensorflow-addons
 tensorflow_io==0.14.0
 retrying

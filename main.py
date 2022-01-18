@@ -1,6 +1,8 @@
 import tensorflow_probability as tfp
 tfd = tfp.distributions
 import pygrid as pygrid
+import os
+print(os.environ.get('LD_LIBRARY_PATH'))
 from absl import app
 import tensorflow.compat.v2 as tf
 from train_utils import *
@@ -40,4 +42,7 @@ def main(argv):
 
 
 if __name__ == '__main__':
+  #if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+    #os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+  os.environ['CUDA_HOME'] = '/opt/cuda/cuda-10.1'
   app.run(main)

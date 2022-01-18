@@ -78,9 +78,9 @@ class Ema():
 
 def num_device():
   device_type = 'TPU'
-  num_devices = len(tf.config.list_logical_devices('TPU'))
+  num_devices = len(tf.config.list_physical_devices('TPU'))
   if num_devices == 0:
-    num_devices = len(tf.config.list_logical_devices('GPU'))
+    num_devices = len(tf.config.list_physical_devices('GPU'))
     device_type = 'GPU'
   return num_devices, device_type
 
