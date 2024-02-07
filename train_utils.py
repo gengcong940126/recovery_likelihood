@@ -88,7 +88,7 @@ def num_device():
 def to_grid(image_batch, size, edge=0):
   h, w = image_batch.shape[1], image_batch.shape[2]
   c = image_batch.shape[3]
-  img = np.ones((int(h * size[0]) + edge * (size[0] - 1), w * size[1] + edge * (size[1] - 1), c)) * 255
+  img = np.zeros((int(h * size[0]) + edge * (size[0] - 1), w * size[1] + edge * (size[1] - 1), c)) * 255
   for idx, im in enumerate(image_batch):
     i = idx % size[1]
     j = idx // size[1]
@@ -127,7 +127,15 @@ def plot_n_by_m_steps(x_true, x_pred, fp, n, m):
     img = np.tile(img, [1, 1, 3])
   with tf.io.gfile.GFile(fp, mode='w') as f:
     Image.fromarray(img).save(f)
+def plot_n_by_m_steps2(x_true, fp, n, m):
+  x_true = to_grid(data_postprocess(x_true), [1, len(x_true)], edge=5)
+  img=x_true.astype(np.uint8)
+  #img = to_grid(data_postprocess(x_true), [1, len(x_true)], edge=5).astype(np.uint8)
 
+  if img.shape[-1] == 1:
+    img = np.tile(img, [1, 1, 3])
+  with tf.io.gfile.GFile(fp, mode='w') as f:
+    Image.fromarray(img).save(f)
 
 def plot_stat(stat_keys, stats, stats_i, output_dir):
   from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
