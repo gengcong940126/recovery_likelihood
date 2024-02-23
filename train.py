@@ -4,6 +4,7 @@ Training/evaluation class
 import tensorflow.compat.v2 as tf
 from model import RecoveryLikelihood
 import datasets
+from tqdm import tqdm
 from eval_utils import *
 from train_utils import *
 import time
@@ -243,7 +244,81 @@ class Trainer:
         break
 
     self.logger.info('done')
+  def test_pretrain_lsun(self, output_dir, output_dir_ckpt, output_dir_thread, strategy):
+    self.train_setup(output_dir, output_dir_ckpt, output_dir_thread)
+    self.logger.info('output dir {}'.format(self.hps.output))
+    self.strategy = strategy
 
+    # dataset
+    # import resource
+    # low, high = resource.getrlimit(resource.RLIMIT_NOFILE)
+    # resource.setrlimit(resource.RLIMIT_NOFILE, (high, high))
+
+    #ds = datasets.get_dataset(self.hps.problem, tfds_data_dir='tensorflow_datasets')
+    self.hps.img_sz = 128
+    #self.n_train = ds.num_train_examples
+    #ds = ds.train_input_fn({'batch_size': self.hps.n_batch_train})
+    #ds_iter = iter(ds)
+    #self.ds_iter = ds_iter
+    #dist_ds = self.strategy.experimental_distribute_dataset(ds)
+    #dist_iter = iter(dist_ds)
+    #self.dist_iter = dist_iter
+    #self.inception_model = get_inception_model()
+    self.diffusion = RecoveryLikelihood(self.hps)
+    self.diffusion.init([8, 128, 128, 3])
+    self.ema = Ema(decay=self.hps.ma_decay)
+    self.diffusion_ema = RecoveryLikelihood(self.hps)
+    self.diffusion_ema.init([8, 128, 128, 3])
+      # ckpt
+    i_iter_var = tf.Variable(int(0), trainable=False)
+    ckpt = tf.train.Checkpoint(model=self.diffusion, model_ema=self.diffusion_ema,
+                               i_iter_var=i_iter_var)
+
+    if self.hps.ckpt_load:
+      self.logger.info("Loading checkpoint: %s" % self.hps.ckpt_load)
+      #self.dist_init_opt()
+      ckpt.restore(self.hps.ckpt_load).expect_partial()
+
+    # STATS
+    # if FLAGS.eval:
+    #   self.logger.info('========== begin evaluation =========')
+    #
+    #   noise = tf.random.normal(shape=[self.hps.fid_n_batch, 128, 128, 3])
+    #   #noise = self.get_dist_tensor(noise)
+    #   x_neg,_ = self.diffusion_ema.p_sample_progressive(noise)
+    #   #x_sample = data_postprocess(x_neg[0]).numpy()
+    #   #x_neg_seq = data_postprocess(x_neg_seq)
+    #
+    #   with tf.io.gfile.GFile(os.path.join(self.samples_dir, 'generate.png'), mode='w') as f:
+    #       #Image.fromarray(x_sample).save(f)
+    #       plot_n_by_m( x_neg[0],
+    #         os.path.join(self.samples_dir, 'generate.png'), n=2, m=8)
+        #print('generating batch ', i+2400)
+
+    if FLAGS.eval:
+      self.logger.info('========== begin FID calculation =========')
+      iters_needed = self.hps.fid_n_samples // self.hps.fid_n_batch
+      for i in range(iters_needed):
+        noise = tf.random.normal(shape=[self.hps.fid_n_batch, 128, 128, 3])
+        #noise = self.get_dist_tensor(noise)
+        x_neg,_ = self.diffusion_ema.p_sample_progressive(noise)
+        x_sample = data_postprocess(x_neg[0]).numpy()
+      #x_neg_seq = data_postprocess(x_neg_seq)
+        for j, x in enumerate(x_sample):
+          index = i * self.hps.fid_n_batch + j
+          with tf.io.gfile.GFile(os.path.join(self.samples_dir, '{}.png'.format(index)), mode='w') as f:
+            Image.fromarray(x).save(f)
+          # plot_n_by_m_steps2( x[None,:],
+          #   os.path.join(self.samples_dir, '{}.png'.format(index)), n=1, m=1)
+        print('generating batch ', i)
+
+
+
+      return 0
+
+
+
+    self.logger.info('done')
   def eval_fid_is(self, full=False):
     self.logger.info('=================  computing fid  =================')
     fid_n_samples = FLAGS.fid_n_samples if not full else self.n_train
